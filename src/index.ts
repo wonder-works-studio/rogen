@@ -51,9 +51,16 @@ async function main(): Promise<void> {
 	if (cliArgs.watch) {
 		console.log(`\n👀 Watching for file changes in: "${sourceDirs.join(', ')}" (Press Ctrl+C to stop)...\n`);
 
+		// WWS fork: poll instead of native watching. chokidar's native mode holds an open handle
+		// on every watched directory, which on Windows blocks renaming (and therefore
+		// recycle-bin deletes) of any source folder — editors then show "folder in use"
+		// prompts and fall back to hard deletes.
 		const watcher = chokidar.watch(sourcePaths, {
 			persistent: true,
-			ignoreInitial: true
+			ignoreInitial: true,
+			usePolling: true,
+			interval: 400,
+			binaryInterval: 800
 		});
 
 		let debounceTimeout: NodeJS.Timeout;
