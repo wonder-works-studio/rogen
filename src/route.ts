@@ -12,6 +12,9 @@ interface FolderRoutingResult {
 	virtualParts: string[];
 	lastRouteKeyword: string | null;
 	environmentKeyword: string | null;
+	// WWS fork: true when a folder keyword (Server/Client/…) set the service, so a file's affix
+	// must not override it.
+	folderKeywordMatched: boolean;
 }
 
 export interface RoutingMaps {
@@ -56,6 +59,7 @@ function resolveFolderRouting(parts: string[], directoryMarkers: Record<string, 
 	let targetService = "ReplicatedStorage";
 	let lastRouteKeyword: string | null = null;
 	let environmentKeyword: string | null = null;
+	let folderKeywordMatched = false;
 
 	// Root marker routing
 	if (directoryMarkers && directoryMarkers[""]) {
@@ -69,6 +73,7 @@ function resolveFolderRouting(parts: string[], directoryMarkers: Record<string, 
 
 	// Folder path routing
 	let currentPath = "";
+	let index = 0;
 	for (const part of parts) {
 		currentPath = currentPath ? `${currentPath}/${part}` : part;
 
@@ -76,33 +81,40 @@ function resolveFolderRouting(parts: string[], directoryMarkers: Record<string, 
 		const matchedService = lowerCaseMap[lowerPart];
 		const marker = directoryMarkers ? directoryMarkers[currentPath] : undefined;
 
+		// WWS fork: a "Shared" folder at the source root is preserved as a real folder
+		// (e.g. ReplicatedStorage/src/Shared/...) rather than consumed as a routing keyword.
+		const isRootShared = lowerPart === "shared" && index === 0;
+
 		if (marker) {
 			targetService = lowerCaseMap[marker];
 			lastRouteKeyword = marker;
 			if (serviceAliases.has(marker)) {
 				environmentKeyword = marker;
 			}
-			
+
 			// Strip if the folder name is also a routing keyword
 			if (!matchedService) {
 				virtualParts.push(part);
 			}
-		} else if (matchedService) {
+		} else if (matchedService && !isRootShared) {
 			targetService = matchedService;
 			lastRouteKeyword = lowerPart;
+			folderKeywordMatched = true;
 			if (serviceAliases.has(lowerPart)) {
 				environmentKeyword = lowerPart;
 			}
 		} else {
 			virtualParts.push(part);
 		}
+
+		index++;
 	}
 
-	return { targetService, virtualParts, lastRouteKeyword, environmentKeyword };
+	return { targetService, virtualParts, lastRouteKeyword, environmentKeyword, folderKeywordMatched };
 }
 
 function resolveAffixes(basename: string, isInit: boolean, routingMaps: RoutingMaps): AffixResult | null {
-	const { lowerCaseMap, mergedServices, separatorSuffixRegex, pascalCaseSuffixRegex, separatorPrefixRegex, camelCasePrefixRegex } = routingMaps;
+	const { lowerCaseMap, mergedServices, separatorSuffixRegex, pascalCaseSuffixRegex } = routingMaps;
 
 	let match = basename.match(separatorSuffixRegex);
 	if (match && match[0].length < basename.length) {
@@ -128,29 +140,9 @@ function resolveAffixes(basename: string, isInit: boolean, routingMaps: RoutingM
 		};
 	}
 
-	match = basename.match(separatorPrefixRegex);
-	if (match && match[0].length < basename.length) {
-		const prefix = match[1].toLowerCase();
-		return {
-			mappedService: lowerCaseMap[prefix],
-			matchedLength: match[0].length,
-			exactMatch: match[0],
-			environmentKeyword: (!isInit && serviceAliases.has(prefix)) ? prefix : undefined,
-			isPrefix: true
-		};
-	}
-
-	match = basename.match(camelCasePrefixRegex);
-	if (match && match[0].length < basename.length) {
-		const prefix = match[1].toLowerCase();
-		return {
-			mappedService: lowerCaseMap[prefix],
-			matchedLength: match[1].length,
-			exactMatch: match[0],
-			environmentKeyword: (!isInit && serviceAliases.has(prefix)) ? prefix : undefined,
-			isPrefix: true
-		};
-	}
+	// WWS fork: prefix routing (separatorPrefixRegex / camelCasePrefixRegex) is intentionally
+	// disabled so feature files whose names begin with a service keyword (e.g. StarterPackOffer,
+	// ClientTouched, ServerStats) are neither rerouted nor renamed.
 
 	return null;
 }
@@ -170,17 +162,23 @@ export function resolveRoute(relativePath: string, isInit: boolean, context: Rou
 	const basename = path.basename(filename, path.extname(filename));
 
 	// Folder and marker routing
-	const { targetService: folderTarget, virtualParts, lastRouteKeyword, environmentKeyword: folderEnv } = resolveFolderRouting(parts, directoryMarkers, routingMaps);
+	const { targetService: folderTarget, virtualParts, lastRouteKeyword, environmentKeyword: folderEnv, folderKeywordMatched } = resolveFolderRouting(parts, directoryMarkers, routingMaps);
 
 	// Affix routing
 	const affix = resolveAffixes(basename, isInit, routingMaps);
 
-	// Resolve overrides
-	let targetService = affix?.mappedService ?? folderTarget;
-	const environmentKeyword = affix?.environmentKeyword ?? folderEnv;
+	// Resolve overrides. WWS fork: a folder keyword wins over a file affix (so e.g.
+	// ReplicatedFirst/Loader.client.luau stays in ReplicatedFirst); the affix suffix is still
+	// stripped from the node name below.
+	const affixOverrides = affix && !folderKeywordMatched;
+	let targetService = affixOverrides ? affix.mappedService : folderTarget;
+	const environmentKeyword = (affixOverrides ? affix.environmentKeyword : folderEnv) ?? folderEnv;
 
-	// Resolve namespace wrapper folder
-	const wrapperFolder = getWrapperFolder(targetService, environmentKeyword);
+	// Resolve namespace wrapper folder. WWS fork: a configured `wrapper` overrides the per-service
+	// server/client/shared namespace; `false` disables the namespace folder entirely.
+	const wrapperFolder = context.wrapper !== undefined
+		? (context.wrapper === false ? "" : context.wrapper)
+		: getWrapperFolder(targetService, environmentKeyword);
 
 	// Edge case: Scripts with non-legacy RunContext run incorrectly in StarterPlayer container,
 	// hence they need to be put in ReplicatedStorage.

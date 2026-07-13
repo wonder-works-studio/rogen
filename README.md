@@ -4,6 +4,15 @@
 	<img src="example.png" alt="Visual mapping of VS Code to Roblox Explorer" width="100%">
 </div>
 
+## WWS Fork
+
+This is Wonder Works Studio's fork of [LDGerrits/rogen](https://github.com/LDGerrits/rogen). It tracks upstream but adds/changes four behaviors so a project can keep a single top-level wrapper folder (`src`) with a preserved root `Shared/` folder:
+
+1. **`wrapper` mode setting** — nest every routed node under one named folder (see the config table) instead of the per-service `server`/`client`/`shared` namespace.
+2. **Root `Shared` preservation** — a `Shared/` folder at the source root is kept as a real folder rather than consumed as a routing keyword. (`Shared/` deeper in the tree is still consumed as usual.)
+3. **Prefix routing disabled** — a filename that merely *begins* with a service keyword (e.g. `StarterPackOffer`, `ClientTouched`, `ServerStats`) is neither rerouted nor renamed. Suffix routing (`Foo.server`, `FooService`) is unchanged.
+4. **Folder keyword wins over a file affix** — e.g. `ReplicatedFirst/Loader.client.luau` stays in `ReplicatedFirst` (the affix suffix is still stripped from the node name).
+
 ## What is Rogen?
 Rogen is a command line tool that brings **feature-based architecture** to Roblox development for both luau and roblox-ts. 
 
@@ -126,7 +135,8 @@ Here is a default configuration structure that works for both roblox-ts and luau
 | Property            | Description                                                                                                                                                                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | source              | The root directory (`string`) or directories (`string[]`) where your source code lives (defaults to `["src"]`). Passing an array allows you to merge multiple source folders into a single tree.                                                                                                                                                                                    |
-| luau / ts / darklua  | Mode-specific overrides. Rogen uses these to dictate where the compiled code ends up (build) and the name of the generated Rojo file (output)                                                                                                                       |
+| luau / ts / darklua  | Mode-specific overrides. Rogen uses these to dictate where the compiled code ends up (build) and the name of the generated Rojo file (output). May also include a `wrapper` (see below).                                                                                                                       |
+| wrapper (per-mode)  | **WWS fork.** A string placed inside a mode (e.g. `"luau": { "wrapper": "src" }`). When set, every routed node is nested under one folder of that name (e.g. `ReplicatedStorage/src/…`, `ServerScriptService/src/…`) instead of the per-service `server`/`client`/`shared` namespace. `false` disables the namespace folder entirely. Omit to keep default behavior. |
 | <custom_mode>  | Define custom pipeline modes (e.g., "lute") by adding a new key. Custom modes must include an output and a build value.                                                                                                                       |
 | template            | The base Rojo tree template. Any standard Rojo `default.project.json` fields (like `name`, `globIgnorePaths`, or a custom `tree`) placed here will be safely merged with Rogen's auto-generated paths. You can also specify a path to a JSON file with a Rojo tree! |
 | aliases             | An object allowing you to define custom suffix or folder routing mappings. You can use this to register new keywords (e.g., `"Controller": "StarterPlayerScripts"`) or overwrite Rogen's default service routing behaviors.                                           |

@@ -13,6 +13,9 @@ export interface CliArgs {
 export interface RogenMode {
 	output: string;
 	build: string;
+	// WWS fork: nests every routed node under one named folder (e.g. "src") instead of the
+	// per-service server/client/shared namespace. `false` disables the namespace folder entirely.
+	wrapper?: string | false;
 }
 
 export type Casing = "PascalCase" | "camelCase";

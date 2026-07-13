@@ -165,7 +165,7 @@ export async function build(
 				current = getOrCreateNode(current, serviceParents[targetService]);
 			}
 			current = getOrCreateNode(current, targetService);
-			current = getOrCreateNode(current, applyCasing(wrapperFolder, casing), "Folder");
+			if (wrapperFolder) current = getOrCreateNode(current, applyCasing(wrapperFolder, casing), "Folder");
 
 			for (const part of virtualParts) {
 				current = getOrCreateNode(current, part, "Folder");

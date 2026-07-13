@@ -91,28 +91,64 @@ describe("Router Logic", () => {
 		expect(result3.nodeName).toBe("PlayerController");
 	});
 
-	it("should route correctly based on separator prefix", () => {
+	it("WWS: prefix routing is disabled — separator prefix does not route or rename", () => {
 		const result = resolveRoute("systems/server.Combat.lua", false, baseContext);
-		
-		expect(result.targetService).toBe("ServerScriptService");
-		expect(result.nodeName).toBe("Combat");
-		expect(result.wrapperFolder).toBe("server");
+
+		expect(result.targetService).toBe("ReplicatedStorage");
+		expect(result.nodeName).toBe("server.Combat");
+		expect(result.wrapperFolder).toBe("shared");
 	});
 
-	it("should route correctly based on pascalcase/no-separator prefix", () => {
-		const result = resolveRoute("ui/ClientController.ts", false, baseContext);
-		
-		expect(result.targetService).toBe("StarterPlayerScripts");
-		expect(result.nodeName).toBe("Controller");
-		expect(result.wrapperFolder).toBe("client");
+	it("WWS: prefix routing is disabled — camelCase prefix does not route or rename", () => {
+		const result = resolveRoute("ui/ClientController.lua", false, baseContext);
+
+		expect(result.targetService).toBe("ReplicatedStorage");
+		expect(result.nodeName).toBe("ClientController");
+		expect(result.wrapperFolder).toBe("shared");
 	});
 
-	it("should strip both prefix and separator from the node name", () => {
+	it("WWS: prefix routing is disabled — underscore prefix does not route or rename", () => {
 		const result = resolveRoute("systems/server_Combat.lua", false, baseContext);
-		
-		expect(result.targetService).toBe("ServerScriptService");
-		expect(result.nodeName).toBe("Combat");
-		expect(result.wrapperFolder).toBe("server");
+
+		expect(result.targetService).toBe("ReplicatedStorage");
+		expect(result.nodeName).toBe("server_Combat");
+		expect(result.wrapperFolder).toBe("shared");
+	});
+
+	it("WWS: a configured wrapper overrides the server/client/shared namespace folder", () => {
+		const wrapperContext: RouteContext = { ...baseContext, wrapper: "src" };
+
+		const server = resolveRoute("systems/Combat.server.lua", false, wrapperContext);
+		expect(server.targetService).toBe("ServerScriptService");
+		expect(server.wrapperFolder).toBe("src");
+
+		const shared = resolveRoute("utils/Math.lua", false, wrapperContext);
+		expect(shared.targetService).toBe("ReplicatedStorage");
+		expect(shared.wrapperFolder).toBe("src");
+	});
+
+	it("WWS: a Shared folder at the source root is preserved as a folder", () => {
+		const result = resolveRoute("Shared/Types.lua", false, baseContext);
+
+		expect(result.targetService).toBe("ReplicatedStorage");
+		expect(result.virtualParts).toContain("Shared");
+		expect(result.nodeName).toBe("Types");
+	});
+
+	it("WWS: a Shared folder below the source root is still consumed as a keyword", () => {
+		const result = resolveRoute("Systems/Data/Shared/Schema.lua", false, baseContext);
+
+		expect(result.targetService).toBe("ReplicatedStorage");
+		expect(result.virtualParts).toEqual(["Systems", "Data"]);
+		expect(result.nodeName).toBe("Schema");
+	});
+
+	it("WWS: a folder keyword wins over a file affix (name still stripped)", () => {
+		const legacyOffContext: RouteContext = { ...baseContext, emitLegacyScripts: false };
+		const result = resolveRoute("ReplicatedFirst/Loader.client.lua", false, legacyOffContext);
+
+		expect(result.targetService).toBe("ReplicatedFirst");
+		expect(result.nodeName).toBe("Loader");
 	});
 
 	it("should not route when using prefix without a separator", () => {
@@ -222,20 +258,22 @@ describe("Routing (Deepest Wins)", () => {
 		expect(result.wrapperFolder).toBe("server");
 	});
 
-	it("File suffix wins over folder keyword", () => {
+	it("WWS: folder keyword wins over file suffix (suffix still stripped)", () => {
 		const context: RouteContext = { ...baseContext };
 		const result = resolveRoute("client/ui/button.server.lua", false, context);
-		
-		expect(result.targetService).toBe("ServerScriptService");
-		expect(result.wrapperFolder).toBe("server");
+
+		expect(result.targetService).toBe("StarterPlayerScripts");
+		expect(result.wrapperFolder).toBe("client");
+		expect(result.nodeName).toBe("button");
 	});
 
-	it("File prefix wins over root marker", () => {
+	it("WWS: prefix routing disabled — root marker applies when there is no affix", () => {
 		const context: RouteContext = { ...baseContext, directoryMarkers: { "": "client" } };
 		const result = resolveRoute("server.combat.lua", false, context);
-		
-		expect(result.targetService).toBe("ServerScriptService");
-		expect(result.wrapperFolder).toBe("server");
+
+		expect(result.targetService).toBe("StarterPlayerScripts");
+		expect(result.wrapperFolder).toBe("client");
+		expect(result.nodeName).toBe("server.combat");
 	});
 
 	it("Deepest keyword wins, all keywords are stripped, no virtual parts left", () => {
