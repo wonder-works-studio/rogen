@@ -13,6 +13,8 @@ This is Wonder Works Studio's fork of [LDGerrits/rogen](https://github.com/LDGer
 3. **Prefix routing disabled** — a filename that merely *begins* with a service keyword (e.g. `StarterPackOffer`, `ClientTouched`, `ServerStats`) is neither rerouted nor renamed. Suffix routing (`Foo.server`, `FooService`) is unchanged.
 4. **Folder keyword wins over a file affix** — e.g. `ReplicatedFirst/Loader.client.luau` stays in `ReplicatedFirst` (the affix suffix is still stripped from the node name).
 5. **No source recreation for luau projects** — placeholder stubs/dirs for missing build paths are only synthesized for compiled projects (ts/darklua). In a luau project the build dir is the source, so a missing path (e.g. a folder you just deleted) is dropped from the tree, never recreated. The generated project file is also written atomically (temp + rename) so a watcher like Rojo never reads a half-written file.
+6. **Generated entries use optional `$path`** (`"$path": { "optional": ... }`) — deleting a file or folder while `rojo serve` runs never leaves the project referencing a required path that no longer exists, which errors Rojo's change processor and force-disconnects the plugin. Template-authored paths stay required (and missing ones are still pruned).
+7. **Generated folders set `$ignoreUnknownInstances: false`** — the Rojo plugin removes stale instances under generated folders (e.g. from files deleted while serve was stopped) instead of leaving unknown children in place, Rojo's default for project-defined nodes. Set the field explicitly in the template to override for a specific node.
 
 ## What is Rogen?
 Rogen is a command line tool that brings **feature-based architecture** to Roblox development for both luau and roblox-ts. 

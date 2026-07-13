@@ -175,13 +175,20 @@ export async function build(
 				return; 
 			}
 
+			// WWS fork: generated entries use the optional $path form so deleting a file or folder
+			// while `rojo serve` is running never leaves the project referencing a required path
+			// that no longer exists (which errors Rojo's change processor and force-disconnects
+			// the plugin). Template-authored paths stay required.
 			const existingNode = (current[nodeName] as RojoNode) || {};
-			const newNode: RojoNode = { ...existingNode, $path: projectPath };
-			
+			const newNode: RojoNode = { ...existingNode, $path: { optional: projectPath } };
+
 			if (newNode.$className === "Folder") {
 				delete newNode.$className;
+				if (newNode.$ignoreUnknownInstances === false) {
+					delete newNode.$ignoreUnknownInstances;
+				}
 			}
-			
+
 			current[nodeName] = newNode;
 		});
 	}

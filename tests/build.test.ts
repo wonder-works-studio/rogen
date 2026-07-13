@@ -57,13 +57,13 @@ describe("Builder Integration", () => {
 		expect(result.output).toBe(path.resolve(process.cwd(), "test.project.json"));
 
 		expect(resultTree.ServerScriptService.server.systems.Combat).toBeDefined();
-		expect(resultTree.ServerScriptService.server.systems.Combat.$path).toBe("out/systems/Combat.server.lua");
+		expect(resultTree.ServerScriptService.server.systems.Combat.$path).toEqual({ optional: "out/systems/Combat.server.lua" });
 
 		expect(resultTree.ReplicatedStorage.shared.Weapon).toBeDefined();
-		expect(resultTree.ReplicatedStorage.shared.Weapon.$path).toBe("out/Weapon.rbxm");
+		expect(resultTree.ReplicatedStorage.shared.Weapon.$path).toEqual({ optional: "out/Weapon.rbxm" });
 
 		expect(resultTree.ReplicatedStorage.shared.ui).toBeDefined();
-		expect(resultTree.ReplicatedStorage.shared.ui.$path).toBe("out/ui");
+		expect(resultTree.ReplicatedStorage.shared.ui.$path).toEqual({ optional: "out/ui" });
 	});
 
 	it("should successfully merge files from multiple source directories into single containers", async () => {
@@ -101,8 +101,8 @@ describe("Builder Integration", () => {
 		expect(resultTree.ReplicatedStorage.shared.CoreMath).toBeDefined();
 		expect(resultTree.ReplicatedStorage.shared.LevelData).toBeDefined();
 		
-		expect(resultTree.ReplicatedStorage.shared.CoreMath.$path).toBe("out/core/CoreMath.lua");
-		expect(resultTree.ReplicatedStorage.shared.LevelData.$path).toBe("out/chapter1/LevelData.lua");
+		expect(resultTree.ReplicatedStorage.shared.CoreMath.$path).toEqual({ optional: "out/core/CoreMath.lua" });
+		expect(resultTree.ReplicatedStorage.shared.LevelData.$path).toEqual({ optional: "out/chapter1/LevelData.lua" });
 	});
 
 	it("should treat a source reached via parent-dir navigation as a root without corrupting the build path", async () => {
@@ -129,7 +129,7 @@ describe("Builder Integration", () => {
 		const result = await build(targetConfig, baseTree, config, env, ["../../src"], cliArgs, process.cwd());
 		const resultTree = result.tree.tree as any;
 
-		expect(resultTree.ReplicatedStorage.shared.Combat.$path).toBe("out/Combat.lua");
+		expect(resultTree.ReplicatedStorage.shared.Combat.$path).toEqual({ optional: "out/Combat.lua" });
 	});
 
 	it("should compile TypeScript sources to .luau paths when the environment is a TS project", async () => {
@@ -156,7 +156,7 @@ describe("Builder Integration", () => {
 		const result = await build(targetConfig, baseTree, config, env, ["src"], cliArgs, process.cwd());
 		const resultTree = result.tree.tree as any;
 
-		expect(resultTree.ReplicatedStorage.shared.Weapon.$path).toBe("out/Weapon.luau");
+		expect(resultTree.ReplicatedStorage.shared.Weapon.$path).toEqual({ optional: "out/Weapon.luau" });
 	});
 
 
@@ -194,7 +194,7 @@ describe("Builder Integration", () => {
 		expect(result.fileCount).toBe(1); 
 		
 		expect(resultTree.ServerScriptService.server.Database.query).toBeDefined();
-		expect(resultTree.ServerScriptService.server.Database.query.$path).toBe("out/Database/query.lua");
+		expect(resultTree.ServerScriptService.server.Database.query.$path).toEqual({ optional: "out/Database/query.lua" });
 	});
 
 	it("should generate PascalCase tree names without changing source paths", async () => {
@@ -233,7 +233,7 @@ describe("Builder Integration", () => {
 		const node = (result.tree.tree as any).ReplicatedStorage.Shared.features.test.testServiceUtils;
 
 		expect(node).toBeDefined();
-		expect(node.$path).toBe("out/features/test/testServiceUtils.luau");
+		expect(node.$path).toEqual({ optional: "out/features/test/testServiceUtils.luau" });
 	});
 
 	it("should generate camelCase tree names by default without changing source paths", async () => {
@@ -272,7 +272,7 @@ describe("Builder Integration", () => {
 		const node = (result.tree.tree as any).ReplicatedStorage.shared.Features.Test.TestServiceUtils;
 
 		expect(node).toBeDefined();
-		expect(node.$path).toBe("out/Features/Test/TestServiceUtils.luau");
+		expect(node.$path).toEqual({ optional: "out/Features/Test/TestServiceUtils.luau" });
 	});
 
 	it("should resolve CLI output relative to cwd, but config output relative to anchor", async () => {
@@ -380,11 +380,11 @@ describe("Builder Integration", () => {
 
 		expect(result.fileCount).toBe(5);
 
-		expect(resultTree.ReplicatedStorage.shared.config.$path).toBe("out/config.toml");
-		expect(resultTree.ReplicatedStorage.shared.data.$path).toBe("out/data.json");
-		expect(resultTree.ReplicatedStorage.shared.locales.$path).toBe("out/locales.csv");
-		expect(resultTree.ReplicatedStorage.shared.notes.$path).toBe("out/notes.txt");
-		expect(resultTree.ReplicatedStorage.shared.README.$path).toBe("out/README.md");
+		expect(resultTree.ReplicatedStorage.shared.config.$path).toEqual({ optional: "out/config.toml" });
+		expect(resultTree.ReplicatedStorage.shared.data.$path).toEqual({ optional: "out/data.json" });
+		expect(resultTree.ReplicatedStorage.shared.locales.$path).toEqual({ optional: "out/locales.csv" });
+		expect(resultTree.ReplicatedStorage.shared.notes.$path).toEqual({ optional: "out/notes.txt" });
+		expect(resultTree.ReplicatedStorage.shared.README.$path).toEqual({ optional: "out/README.md" });
 	});
 
 	it("should create empty folders for directories containing .gitkeep or .keep files", async () => {

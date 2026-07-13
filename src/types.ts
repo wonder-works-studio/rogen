@@ -39,7 +39,10 @@ export interface Environment {
 
 export interface RojoNode {
 	$className?: string;
-	$path?: string;
+	// WWS fork: generated entries use Rojo's optional form so a deleted file/folder never leaves
+	// the project referencing a required path that no longer exists.
+	$path?: string | { optional: string };
+	$ignoreUnknownInstances?: boolean;
 	[key: string]: unknown;
 }
 

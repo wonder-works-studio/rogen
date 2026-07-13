@@ -30,9 +30,27 @@ export function applyCasing(value: string, casing: Casing): string {
 	return firstCharacter + value.slice(1);
 }
 
+// WWS fork: extracts the path string from either $path shape ("p" or { optional: "p" }).
+export function getPathString(node: RojoNode): string | undefined {
+	const p = node.$path;
+	if (typeof p === "string") return p;
+	if (p && typeof p === "object" && typeof p.optional === "string") return p.optional;
+	return undefined;
+}
+
+// WWS fork: generated Folder nodes set $ignoreUnknownInstances:false so the Rojo plugin removes
+// stale instances (e.g. from files deleted while serve was stopped) instead of leaving unknown
+// children in place, which is Rojo's default for project-defined nodes.
 export function getOrCreateNode(parent: RojoNode, key: string, className?: string): RojoNode {
 	if (!parent[key]) {
-		parent[key] = className == null ? {} : { $className: className };
+		parent[key] = className == null ? {} : { $className: className, $ignoreUnknownInstances: false };
+	} else if (className != null) {
+		// Node pre-seeded by the template (e.g. the wrapper folder holding Packages): still a
+		// generated-owned folder, so apply the flag unless the template explicitly set it.
+		const existing = parent[key] as RojoNode;
+		if (existing.$ignoreUnknownInstances === undefined && existing.$path === undefined) {
+			existing.$ignoreUnknownInstances = false;
+		}
 	}
 	return parent[key] as RojoNode;
 }
@@ -45,14 +63,20 @@ export function pruneObject(node: RojoNode, buildDir: string, outputDir: string,
 		const childTreePath = treePath ? `${treePath}.${key}` : key;
 		const childNode = val as RojoNode;
 
-		if (childNode.$path) {
-			if (hasPathPrefix(childNode.$path, buildDir)) continue; 
-			
-			const absolutePath = path.resolve(outputDir, childNode.$path);
-			if (!fs.existsSync(absolutePath)) {
-				delete node[key];
-				removed.push({ treePath: childTreePath, rojoPath: childNode.$path });
-				continue;
+		const childPath = getPathString(childNode);
+		if (childPath) {
+			if (hasPathPrefix(childPath, buildDir)) continue;
+
+			// Optional paths are allowed to be absent — Rojo skips them without erroring —
+			// so only required (string) template paths are pruned when missing.
+			const isOptional = typeof childNode.$path === "object";
+			if (!isOptional) {
+				const absolutePath = path.resolve(outputDir, childPath);
+				if (!fs.existsSync(absolutePath)) {
+					delete node[key];
+					removed.push({ treePath: childTreePath, rojoPath: childPath });
+					continue;
+				}
 			}
 		}
 		pruneObject(childNode, buildDir, outputDir, removed, childTreePath);
@@ -83,15 +107,16 @@ export function findMissingPaths(node: RojoNode, buildDir: string, outputDir: st
 		const childTreePath = treePath ? `${treePath}.${key}` : key;
 		const childNode = val as RojoNode;
 
-		if (childNode.$path && hasPathPrefix(childNode.$path, buildDir)) {
-			const absolutePath = path.resolve(outputDir, childNode.$path);
+		const childPath = getPathString(childNode);
+		if (childPath && hasPathPrefix(childPath, buildDir)) {
+			const absolutePath = path.resolve(outputDir, childPath);
 			if (!fs.existsSync(absolutePath)) {
-				missing.push({ 
-					parent: node, 
-					key, 
+				missing.push({
+					parent: node,
+					key,
 					treePath: childTreePath,
-					path: childNode.$path, 
-					absolutePath 
+					path: childPath,
+					absolutePath
 				});
 			}
 		}
