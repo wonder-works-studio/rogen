@@ -296,42 +296,58 @@ describe("Builder Integration", () => {
 		expect(resultB.output.replace(/\\/g, "/")).toBe(expectedCliPath);
 	});
 
-	it("should create a directory for missing extensionless paths instead of dropping them", async () => {
+	function mockMissingInitFolder() {
 		jest.spyOn(fs, "existsSync").mockImplementation((p) => {
 			const pathStr = String(p).replace(/\\/g, "/");
-
 			if (pathStr.endsWith("test.json")) return false;
-			
 			if (pathStr.includes("out/MissingInitFolder")) return false;
-
 			return true;
 		});
 
 		(jest.spyOn(fs.promises, "readdir") as jest.Mock<(dir: string) => Promise<any[]>>).mockImplementation(async (dir: string) => {
 			const normalizedDir = String(dir).replace(/\\/g, "/");
 			if (normalizedDir.endsWith("src")) {
-				return [{ name: "MissingInitFolder", isDirectory: () => true, isFile: () => false }];
+				return [{ name: "MissingInitFolder", isDirectory: () => true, isFile: () => false }] as fs.Dirent[];
 			}
 			if (normalizedDir.endsWith("MissingInitFolder")) {
-				return [{ name: "init.lua", isDirectory: () => false, isFile: () => true }];
+				return [{ name: "init.lua", isDirectory: () => false, isFile: () => true }] as fs.Dirent[];
 			}
 			return [];
 		});
+	}
 
+	it("should create a directory for missing extensionless paths in compiled (ts/darklua) projects", async () => {
+		mockMissingInitFolder();
 		const mkdirSpy = jest.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
-		const writeSpy = jest.spyOn(fs, "writeFileSync").mockImplementation(() => undefined as any);
+		jest.spyOn(fs, "writeFileSync").mockImplementation(() => undefined as any);
+		jest.spyOn(fs, "renameSync").mockImplementation(() => undefined as any);
 
-		const dummyEnv = { isTsProject: false, isDarkluaProject: false };
-		const dummyConfig = { source: "src", luau: { output: "test.json", build: "out" } };
-		const baseTree = { name: "test", tree: {} };
+		const env = { isTsProject: true, isDarkluaProject: false };
+		const config = { source: "src", ts: { output: "test.json", build: "out" } };
 		const anchor = process.cwd();
 
-		await execute(["src"], dummyEnv, [dummyConfig.luau], baseTree, dummyConfig, {}, anchor);
+		await execute(["src"], env, [config.ts], { name: "test", tree: {} }, config, {}, anchor);
 
 		const expectedDirPath = path.resolve(anchor, "out/MissingInitFolder");
-
 		expect(mkdirSpy).toHaveBeenCalledWith(expectedDirPath, { recursive: true });
-		expect(writeSpy).not.toHaveBeenCalledWith(expectedDirPath, "");
+	});
+
+	it("WWS: drops missing paths in luau projects instead of recreating them", async () => {
+		mockMissingInitFolder();
+		const mkdirSpy = jest.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		let written = "";
+		jest.spyOn(fs, "writeFileSync").mockImplementation(((_p: unknown, data: unknown) => { written = String(data); }) as any);
+		jest.spyOn(fs, "renameSync").mockImplementation(() => undefined as any);
+
+		const env = { isTsProject: false, isDarkluaProject: false };
+		const config = { source: "src", luau: { output: "test.json", build: "out" } };
+		const anchor = process.cwd();
+
+		await execute(["src"], env, [config.luau], { name: "test", tree: {} }, config, {}, anchor);
+
+		const expectedDirPath = path.resolve(anchor, "out/MissingInitFolder");
+		expect(mkdirSpy).not.toHaveBeenCalledWith(expectedDirPath, { recursive: true });
+		expect(written).not.toContain("MissingInitFolder");
 	});
 
 	it("should support Argon and Rojo data file types (JSON, TOML, YAML, CSV, etc.)", async () => {

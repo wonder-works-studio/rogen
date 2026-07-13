@@ -12,6 +12,7 @@ This is Wonder Works Studio's fork of [LDGerrits/rogen](https://github.com/LDGer
 2. **Root `Shared` preservation** — a `Shared/` folder at the source root is kept as a real folder rather than consumed as a routing keyword. (`Shared/` deeper in the tree is still consumed as usual.)
 3. **Prefix routing disabled** — a filename that merely *begins* with a service keyword (e.g. `StarterPackOffer`, `ClientTouched`, `ServerStats`) is neither rerouted nor renamed. Suffix routing (`Foo.server`, `FooService`) is unchanged.
 4. **Folder keyword wins over a file affix** — e.g. `ReplicatedFirst/Loader.client.luau` stays in `ReplicatedFirst` (the affix suffix is still stripped from the node name).
+5. **No source recreation for luau projects** — placeholder stubs/dirs for missing build paths are only synthesized for compiled projects (ts/darklua). In a luau project the build dir is the source, so a missing path (e.g. a folder you just deleted) is dropped from the tree, never recreated. The generated project file is also written atomically (temp + rename) so a watcher like Rojo never reads a half-written file.
 
 ## What is Rogen?
 Rogen is a command line tool that brings **feature-based architecture** to Roblox development for both luau and roblox-ts. 
